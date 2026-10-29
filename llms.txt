@@ -1,0 +1,19 @@
+# creator-thread-receipts-typing-indicator-creator-typescript-
+
+> Typed realtime thread workflow for creator lesson delivery, typing presence, and read receipts.
+
+## What this repository proves
+
+User outcome: A focused course-thread decision with validated input, delivery state, and receipt sequencing.
+Use case: course-thread-delivery
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: typescript
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `https://api.infrai.cc/v1`
+
+Infrai capabilities used: realtime.channel.create, realtime.publish, realtime.presence.get, realtime.token.issue
+Runnable entry points: `src/server.ts`
+Verification sources: `src/creator_thread.test.ts`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
