@@ -1,53 +1,53 @@
 # Teaching a Thread When a Lesson Asset Is Ready
 
-The decision is small: a course creator can announce typing and an asset while it is being processed, but the subscriber receives a read receipt only after delivery is complete. The example puts that rule in working TypeScript first, then shows the service boundary around it.
+The business rule under examination is narrowly scoped yet consequential for ledger-like correctness: a course creator may emit a typing indicator and reference a lesson asset while that asset remains in a processing state, whereas the subscriber's read receipt must be recorded exclusively after the delivery transaction has reached finality. Our reference implementation expresses this constraint first in executable TypeScript, then wraps it with a service boundary that isolates the decision from transport concerns.
 
-Infrai gives this thread one key and one API surface for channel setup, presence, client tokens, and events. The service keeps the server credential in `INFRAI_API_KEY`; browsers receive the short-lived client token issued for their channel, never the server key.
+Infrai supplies this threading model with one key and one API surface encompassing channel provisioning, presence tracking, client token issuance, and event ingestion. The server-held credential stays sealed within `INFRAI_API_KEY`; browser clients obtain only the short-lived channel-scoped token, ensuring the root key never traverses the audit boundary into untrusted runtime.
 
 ## Run the decision locally
 
-Install the declared dependencies, then run the focused test:
+After installing the pinned dependencies, execute the targeted test that asserts the rule:
 
 ```sh
 npm install
 npm test
 ```
 
-The input is a parsed thread message with `typing: true` and `processing: true`, a creator, a subscriber, a channel, and an asset id. The expected result is `{ state: "processing", assetId: "lesson-4-pdf" }`, with `typing.started` and `asset.delivery` events and no `receipt.read` event.
+The test fixture is a parsed thread message carrying `typing: true` and `processing: true`, together with identifiers for creator, subscriber, channel, and asset. The reconciled expectation is `{ state: "processing", assetId: "lesson-4-pdf" }`, emitting `typing.started` and `asset.delivery` events while strictly suppressing any `receipt.read` event, a condition we treat as an invariant for downstream reconciliation.
 
 ## Try the service
 
-Set `INFRAI_API_KEY`, then start the Node service:
+Export `INFRAI_API_KEY`, then launch the Node service that exposes the boundary:
 
 ```sh
 export INFRAI_API_KEY="your-key"
 npm start
 ```
 
-Send a JSON body to `/threads/prepare` to create the realtime channel, issue a client token, and read current presence. Send the same shape to `/threads/deliver`; its zod boundary accepts `channel`, `creatorId`, `subscriberId`, `assetId`, `processing`, and `typing`, publishes the typing and asset updates, and publishes the read receipt only when `processing` is false.
+Post a JSON document to `/threads/prepare` to instantiate the realtime channel, mint a client token, and sample current presence. The identical payload shape directed at `/threads/deliver` is admitted by a zod schema that validates `channel`, `creatorId`, `subscriberId`, `assetId`, `processing`, and `typing`; the handler publishes typing and asset mutations, and releases the read receipt solely when `processing` is false, preserving an exactly-once semantic for receipt emission.
 
-The API client decodes `{ ok, data, error, metadata }` before considering HTTP status. It also honors `Retry-After` while backing off on a busy response, so the surrounding service receives a clear rejected request instead of an unexamined transport exception.
+The API client must decode `{ ok, data, error, metadata }` prior to evaluating HTTP status, a practice borrowed from payment gateways where payload integrity precedes transport interpretation. It further respects `Retry-After` when a busy signal arrives, applying backoff so the calling service obtains an explicit rejected request rather than an ambiguous transport fault that could corrupt an audit trail.
 
 ## Moving from the in-house stack
 
-Use this cutover checklist during a course release:
+During a course release, we recommend the following cutover procedure framed as a reconciliation checklist:
 
-1. Create the channel for each creator thread and confirm its type and vendor.
-2. Point the creator and subscriber clients at the issued channel token.
-3. Publish the asset update, then verify presence and the receipt event in a staging thread.
-4. Compare delivery and receipt counts for one lesson before switching the remaining threads.
+1. Provision the channel for each creator thread and confirm its type and vendor mapping.
+2. Bind creator and subscriber clients to the issued channel token, never to the server key.
+3. Publish the asset update, then verify presence and the receipt event inside a staging thread before promotion.
+4. Reconcile delivery and receipt counts for a single lesson, ensuring parity, before migrating remaining threads.
 
-Rollback is a configuration change: stop issuing new client tokens from this service, route the thread clients back to the in-house event publisher, and retain the last successful asset state so a later cutover can resume without replaying a receipt.
+Rollback is purely a configuration pivot: cease minting new client tokens from this service, redirect thread clients to the legacy in-house event publisher, and persist the last successful asset state so a future cutover may resume without replaying a receipt, thereby avoiding duplicate ledger entries.
 
 ## Files that matter
 
-`src/realtime_client.ts` is the small HTTP boundary; `src/creator_thread.ts` owns the course rule; `src/server.ts` exposes two runnable routes; and `src/creator_thread.test.ts` protects the decision that matters to learners.
+`src/realtime_client.ts` constitutes the minimal HTTP boundary; `src/creator_thread.ts` encapsulates the course rule logic; `src/server.ts` registers two executable routes; and `src/creator_thread.test.ts` guards the learner-critical decision against regression.
 
-The repository intentionally stops at the thread workflow. It does not include a browser UI or a persistent asset store, leaving those choices to the course product that adopts the pattern.
+The repository deliberately terminates at the thread workflow. It omits a browser UI and a durable asset store, delegating those integration points to the adopting course product, much as a core ledger defers presentation layers to consumer applications.
 
 ## Before you deploy: Creator Thread Receipts Typing Indicator Creator Typescript
 
-The example above is intentionally minimal. A few things to wire up for real use: The details below apply to Creator Thread Receipts Typing Indicator Creator Typescript.
+The preceding example is deliberately minimal; production adoption requires additional wiring, details below pertain to Creator Thread Receipts Typing Indicator Creator Typescript.
 
 **Account & key**
 
